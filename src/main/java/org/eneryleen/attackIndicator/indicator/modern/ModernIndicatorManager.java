@@ -2,6 +2,8 @@ package org.eneryleen.attackIndicator.indicator.modern;
 
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
+import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
+import net.kyori.adventure.text.minimessage.tag.standard.StandardTags;
 import org.bukkit.Location;
 import org.bukkit.entity.Display;
 import org.bukkit.entity.LivingEntity;
@@ -28,7 +30,18 @@ public class ModernIndicatorManager implements IndicatorSpawner {
 
     public ModernIndicatorManager(AttackIndicator plugin) {
         this.plugin = plugin;
-        this.miniMessage = MiniMessage.miniMessage();
+        // Restrict to formatting tags only. Interactive tags (click/hover/insertion)
+        // are intentionally excluded so a config-supplied format cannot inject
+        // clickable links or hover payloads onto every player's screen.
+        this.miniMessage = MiniMessage.builder()
+                .tags(TagResolver.resolver(
+                        StandardTags.color(),
+                        StandardTags.decorations(),
+                        StandardTags.gradient(),
+                        StandardTags.rainbow(),
+                        StandardTags.reset()
+                ))
+                .build();
         this.damageFormat = new DecimalFormat("0.#");
         this.random = new Random();
         this.activeIndicators = ConcurrentHashMap.newKeySet();
@@ -38,13 +51,20 @@ public class ModernIndicatorManager implements IndicatorSpawner {
     public void spawnIndicator(LivingEntity entity, double damage) {
         ConfigManager config = plugin.getConfigManager();
 
+        final int max = config.getMaxActiveIndicators();
+        // Cheap early-out; the authoritative cap check happens inside the spawn
+        // task below, since the set is only incremented there.
+        if (max > 0 && activeIndicators.size() >= max) {
+            return;
+        }
+
         Location location = entity.getLocation().clone();
         double entityHeight = entity.getHeight();
         location.add(0, entityHeight + config.getVerticalOffset(), 0);
 
         if (config.isRandomOffsetEnabled()) {
             double offsetX = (random.nextDouble() - 0.5) * config.getRandomOffsetX();
-            double offsetY = (random.nextDouble() - 0.5) * config.getYOffset();
+            double offsetY = (random.nextDouble() - 0.5) * config.getRandomOffsetY();
             double offsetZ = (random.nextDouble() - 0.5) * config.getRandomOffsetZ();
             location.add(offsetX, offsetY, offsetZ);
         }
@@ -54,11 +74,20 @@ public class ModernIndicatorManager implements IndicatorSpawner {
         Component textComponent = miniMessage.deserialize(formattedText);
 
         plugin.getServer().getScheduler().runTask(plugin, () -> {
+            // Re-check here so a same-tick burst (e.g. AoE damage) cannot
+            // overshoot the cap: the set is incremented in this same task.
+            if (max > 0 && activeIndicators.size() >= max) {
+                return;
+            }
+
             TextDisplay display = location.getWorld().spawn(location, TextDisplay.class, textDisplay -> {
                 textDisplay.text(textComponent);
                 textDisplay.setBillboard(Display.Billboard.CENTER);
                 textDisplay.setAlignment(TextDisplay.TextAlignment.CENTER);
                 textDisplay.setSeeThrough(true);
+                // Transient entity: never written to disk, so a crash or chunk
+                // unload mid-animation cannot leave orphaned indicators behind.
+                textDisplay.setPersistent(false);
 
                 float scale = config.getIndicatorScale();
                 Transformation transformation = textDisplay.getTransformation();

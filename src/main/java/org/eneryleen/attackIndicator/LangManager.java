@@ -25,6 +25,13 @@ public class LangManager {
     }
 
     public void loadLanguage(String lang) {
+        // Sanitize the config-supplied code: only [a-zA-Z0-9_-] is allowed so a
+        // value like "../../secret" can never resolve a file outside /lang.
+        if (lang == null || !lang.matches("[a-zA-Z0-9_-]+")) {
+            plugin.getLogger().warning("Invalid language code '" + lang + "', falling back to 'en'");
+            lang = "en";
+        }
+
         this.language = lang;
         messages.clear();
 
@@ -36,7 +43,16 @@ public class LangManager {
         File langFile = new File(langFolder, lang + ".yml");
 
         if (!langFile.exists()) {
-            plugin.saveResource("lang/" + lang + ".yml", false);
+            // saveResource throws if the resource isn't bundled, so only extract
+            // a known language; otherwise (a non-bundled code that the operator
+            // hasn't dropped a file for) fall back to English instead of crashing.
+            if (plugin.getResource("lang/" + lang + ".yml") != null) {
+                plugin.saveResource("lang/" + lang + ".yml", false);
+            } else if (!"en".equals(lang)) {
+                plugin.getLogger().warning("Language '" + lang + "' is not bundled and no file was provided; falling back to 'en'");
+                loadLanguage("en");
+                return;
+            }
         }
 
         FileConfiguration config;

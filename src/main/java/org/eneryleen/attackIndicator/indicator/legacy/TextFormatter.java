@@ -19,7 +19,6 @@ public class TextFormatter {
     private static boolean isAdventureAvailable() {
         if (adventureAvailable == null) {
             try {
-                Class.forName("net.kyori.adventure.text.minimessage.MiniMessage");
                 Class<?> miniMessageClass = Class.forName("net.kyori.adventure.text.minimessage.MiniMessage");
                 Class<?> legacySerializerClass = Class.forName("net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer");
 

@@ -15,16 +15,17 @@ public class UpdateChecker {
 
     private static final String MODRINTH_API_URL = "https://api.modrinth.com/v2/project/%s/version";
     private static final String PROJECT_ID = "attack-indicator";
-    private static final String USER_AGENT = "AttackIndicator/2.1 (github.com/eneryleen/attack-indicator)";
 
     private final JavaPlugin plugin;
     private final Logger logger;
     private final String currentVersion;
+    private final String userAgent;
 
     public UpdateChecker(JavaPlugin plugin) {
         this.plugin = plugin;
         this.logger = plugin.getLogger();
         this.currentVersion = plugin.getDescription().getVersion();
+        this.userAgent = "AttackIndicator/" + currentVersion + " (github.com/Eneryleen/Attack-indicator)";
     }
 
     public void checkForUpdates() {
@@ -36,7 +37,7 @@ public class UpdateChecker {
                 URL url = new URL(apiUrl);
                 connection = (HttpURLConnection) url.openConnection();
                 connection.setRequestMethod("GET");
-                connection.setRequestProperty("User-Agent", USER_AGENT);
+                connection.setRequestProperty("User-Agent", userAgent);
                 connection.setConnectTimeout(5000);
                 connection.setReadTimeout(5000);
 
@@ -49,8 +50,15 @@ public class UpdateChecker {
                 reader = new BufferedReader(new InputStreamReader(connection.getInputStream()));
                 StringBuilder response = new StringBuilder();
                 String line;
+                // Bound the buffer so a compromised/hijacked endpoint streaming an
+                // unbounded body cannot OOM the server.
+                final int maxResponseChars = 1_048_576; // 1 MB
                 while ((line = reader.readLine()) != null) {
                     response.append(line);
+                    if (response.length() > maxResponseChars) {
+                        logger.warning("Update check aborted: response exceeded " + maxResponseChars + " characters");
+                        return;
+                    }
                 }
 
                 JsonArray versions = JsonParser.parseString(response.toString()).getAsJsonArray();

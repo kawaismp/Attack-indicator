@@ -19,7 +19,7 @@ public class ConfigManager {
     private double verticalOffset;
     private boolean randomOffsetEnabled;
     private double randomOffsetX;
-    private double yOffset;
+    private double randomOffsetY;
     private double randomOffsetZ;
     private DisplayMode displayMode;
     private Set<String> disabledWorlds;
@@ -27,6 +27,7 @@ public class ConfigManager {
     private Set<EntityType> entityFilter;
     private boolean showOnPlayers;
     private float indicatorScale;
+    private int maxActiveIndicators;
 
     public ConfigManager(AttackIndicator plugin) {
         this.plugin = plugin;
@@ -41,11 +42,11 @@ public class ConfigManager {
         indicatorFormat = config.getString("indicator-format", "<#ff5555>❤️ -{damage}");
         displayDuration = config.getInt("display-duration", 40);
         upwardSpeed = config.getDouble("upward-speed", 0.03);
-        verticalOffset = config.getDouble("vertical-offset", 0.5);
+        verticalOffset = config.getDouble("vertical-offset", -0.5);
 
         randomOffsetEnabled = config.getBoolean("random-offset.enabled", true);
         randomOffsetX = config.getDouble("random-offset.x", 0.5);
-        yOffset = config.getDouble("random-offset.y", 0.5);
+        randomOffsetY = config.getDouble("random-offset.y", 0.5);
         randomOffsetZ = config.getDouble("random-offset.z", 0.5);
 
         String mode = config.getString("display-mode", "PLAYER_ONLY");
@@ -60,6 +61,10 @@ public class ConfigManager {
 
         showOnPlayers = config.getBoolean("show-on-players", false);
         indicatorScale = (float) config.getDouble("indicator-scale", 1.5);
+
+        // Hard cap on concurrently spawned indicators to bound entity/tick load
+        // during damage bursts. Values <= 0 disable the cap (unlimited).
+        maxActiveIndicators = config.getInt("performance.max-active-indicators", 200);
 
         entityFilterWhitelist = config.getBoolean("entity-filter.whitelist-mode", false);
         entityFilter = new HashSet<>();
@@ -102,8 +107,8 @@ public class ConfigManager {
         return randomOffsetX;
     }
 
-    public double getYOffset() {
-        return yOffset;
+    public double getRandomOffsetY() {
+        return randomOffsetY;
     }
 
     public double getRandomOffsetZ() {
@@ -148,6 +153,10 @@ public class ConfigManager {
 
     public float getIndicatorScale() {
         return indicatorScale;
+    }
+
+    public int getMaxActiveIndicators() {
+        return maxActiveIndicators;
     }
 
     public enum DisplayMode {

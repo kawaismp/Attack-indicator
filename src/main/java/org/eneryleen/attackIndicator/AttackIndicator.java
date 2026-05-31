@@ -1,6 +1,7 @@
 package org.eneryleen.attackIndicator;
 
 import org.bstats.bukkit.Metrics;
+import org.bukkit.command.PluginCommand;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.eneryleen.attackIndicator.indicator.IndicatorFactory;
 import org.eneryleen.attackIndicator.indicator.IndicatorSpawner;
@@ -30,8 +31,13 @@ public final class AttackIndicator extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new DamageListener(this), this);
 
         ReloadCommand reloadCommand = new ReloadCommand(this);
-        getCommand("attackindicator").setExecutor(reloadCommand);
-        getCommand("attackindicator").setTabCompleter(reloadCommand);
+        PluginCommand command = getCommand("attackindicator");
+        if (command != null) {
+            command.setExecutor(reloadCommand);
+            command.setTabCompleter(reloadCommand);
+        } else {
+            getLogger().severe("Command 'attackindicator' is missing from plugin.yml; commands disabled.");
+        }
 
         int pluginId = 27487;
         new Metrics(this, pluginId);

@@ -22,6 +22,9 @@ language: en
 # {damage} will be replaced with the actual damage amount
 #
 # MiniMessage formatting (1.16.5+): https://docs.advntr.dev/minimessage/format.html
+# Note: only formatting tags are active (colors, hex, gradients, decorations).
+# Interactive tags (<click>, <hover>, <insertion>) are disabled for safety and
+# will be shown as literal text.
 # Examples for modern versions (1.16.5+):
 #   "<#ffffff>-{damage}<#ff5555>♥" - Hex colors with heart
 #   "<gradient:#ff0000:#ffff00>-{damage}</gradient>" - Red to yellow gradient
@@ -53,9 +56,12 @@ vertical-offset: -0.5
 
 # Random offset settings to prevent indicators from stacking
 # Works on all versions (1.8+)
+# Each axis defines the total spread (in blocks); the actual offset is
+# randomized within the range [-value/2, +value/2].
 random-offset:
   enabled: true
   x: 0.5
+  y: 0.5
   z: 0.5
 
 # ═══════════════════════════════════════════════════════════════════
@@ -89,6 +95,19 @@ show-on-players: false
 # On older versions, this setting is ignored (Armor Stands have fixed size)
 # Default is 1.5. Higher values make indicators larger, lower values make them smaller
 indicator-scale: 1.5
+
+# ═══════════════════════════════════════════════════════════════════
+#                      Performance
+# ═══════════════════════════════════════════════════════════════════
+
+performance:
+  # Maximum number of indicators that may exist at the same time.
+  # During heavy damage bursts (many mobs hit at once) this caps the number
+  # of spawned entities and per-tick animation tasks, protecting server TPS.
+  # New indicators are skipped while the cap is reached.
+  # Set to 0 (or any value <= 0) to disable the cap (unlimited).
+  # Works on all versions (1.8+)
+  max-active-indicators: 200
 
 # ═══════════════════════════════════════════════════════════════════
 #                      Entity Filter

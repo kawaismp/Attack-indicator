@@ -1,5 +1,5 @@
 name: AttackIndicator
-version: '2.3'
+version: '2.4'
 main: org.eneryleen.attackIndicator.AttackIndicator
 api-version: '1.13'
 authors: [ Eneryleen ]

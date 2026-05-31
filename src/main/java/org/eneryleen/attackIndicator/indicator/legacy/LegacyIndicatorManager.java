@@ -31,13 +31,20 @@ public class LegacyIndicatorManager implements IndicatorSpawner {
     public void spawnIndicator(LivingEntity entity, double damage) {
         ConfigManager config = plugin.getConfigManager();
 
+        final int max = config.getMaxActiveIndicators();
+        // Cheap early-out; the authoritative cap check happens inside the spawn
+        // task below, since the set is only incremented there.
+        if (max > 0 && activeIndicators.size() >= max) {
+            return;
+        }
+
         Location location = entity.getLocation().clone();
         double entityHeight = getEntityHeight(entity);
         location.add(0, entityHeight + config.getVerticalOffset(), 0);
 
         if (config.isRandomOffsetEnabled()) {
             double offsetX = (random.nextDouble() - 0.5) * config.getRandomOffsetX();
-            double offsetY = (random.nextDouble() - 0.5) * config.getYOffset();
+            double offsetY = (random.nextDouble() - 0.5) * config.getRandomOffsetY();
             double offsetZ = (random.nextDouble() - 0.5) * config.getRandomOffsetZ();
             location.add(offsetX, offsetY, offsetZ);
         }
@@ -46,6 +53,12 @@ public class LegacyIndicatorManager implements IndicatorSpawner {
         String formattedText = config.getIndicatorFormat().replace("{damage}", damageText);
 
         plugin.getServer().getScheduler().runTask(plugin, () -> {
+            // Re-check here so a same-tick burst (e.g. AoE damage) cannot
+            // overshoot the cap: the set is incremented in this same task.
+            if (max > 0 && activeIndicators.size() >= max) {
+                return;
+            }
+
             String displayText = TextFormatter.format(formattedText);
 
             ArmorStand armorStand = location.getWorld().spawn(location, ArmorStand.class);
@@ -54,6 +67,14 @@ public class LegacyIndicatorManager implements IndicatorSpawner {
             armorStand.setCustomNameVisible(true);
             armorStand.setVisible(false);
             armorStand.setGravity(false);
+
+            try {
+                // Transient entity: not saved to disk, so a crash or chunk unload
+                // mid-animation cannot leave orphaned armor stands behind.
+                // Guarded for 1.8 where setPersistent is unavailable.
+                armorStand.setPersistent(false);
+            } catch (NoSuchMethodError ignored) {
+            }
 
             try {
                 armorStand.setMarker(true);
